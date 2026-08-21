@@ -1,17 +1,11 @@
 import logging
 import asyncio
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import firebase_admin
-from firebase_admin import credentials, db
 
-# FIREBASE SETUP
-FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com/"
-
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(options={
-        'databaseURL': FIREBASE_URL
-    })
+# FIREBASE SETUP (REST API)
+FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
 
 BOT_TOKEN = "8807267842:AAGzBnt72SUmpjuIGUv4G2l8hHoxugh_yyc"
 MINI_APP_URL = "https://tg-mini-app-ecru.vercel.app"
@@ -24,8 +18,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ref_by = args[0].replace('ref_', '') if args and args[0].startswith('ref_') else None
 
-    user_ref = db.reference(f'users/{user_id}')
-    user_data = user_ref.get()
+    # Fetch User
+    res = requests.get(f"{FIREBASE_URL}/users/{user_id}.json")
+    user_data = res.json()
 
     if not user_data:
         new_user = {
@@ -35,15 +30,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'referrals': 0,
             'referred_by': ref_by or ''
         }
-        user_ref.set(new_user)
+        requests.put(f"{FIREBASE_URL}/users/{user_id}.json", json=new_user)
 
         if ref_by and ref_by != user_id:
-            referrer_ref = db.reference(f'users/{ref_by}')
-            referrer_data = referrer_ref.get()
+            ref_res = requests.get(f"{FIREBASE_URL}/users/{ref_by}.json")
+            referrer_data = ref_res.json()
             if referrer_data:
                 current_bal = referrer_data.get('balance', 0.0)
                 current_refs = referrer_data.get('referrals', 0)
-                referrer_ref.update({
+                requests.patch(f"{FIREBASE_URL}/users/{ref_by}.json", json={
                     'balance': current_bal + REFER_BONUS,
                     'referrals': current_refs + 1
                 })
@@ -68,7 +63,6 @@ async def main():
     await app.start()
     await app.updater.start_polling()
     
-    # Keep application running
     await asyncio.Event().wait()
 
 if __name__ == '__main__':
