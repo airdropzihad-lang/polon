@@ -1,10 +1,9 @@
 import logging
 import asyncio
 import requests
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# FIREBASE SETUP
 FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
 BOT_TOKEN = "8807267842:AAGzBnt72SUmpjuIGUv4G2l8hHoxugh_yyc"
 MINI_APP_URL = "https://tg-mini-app-ecru.vercel.app"
@@ -42,8 +41,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'referrals': current_refs + 1
                 })
 
+    # WebAppInfo ব্যবহার করা হয়েছে যেন ব্রাউজার পপআপ না আসে
     keyboard = [
-        [InlineKeyboardButton("🚀 Open Mini App", url=MINI_APP_URL)]
+        [InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=MINI_APP_URL))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
