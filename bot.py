@@ -1,9 +1,25 @@
+import os
 import logging
 import asyncio
 import requests
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
+# Render Port Handler (Fixes No Open Ports Error)
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is live!")
+
+def run_health_check():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    server.serve_forever()
+
+# FIREBASE SETUP
 FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
 BOT_TOKEN = "8807267842:AAGzBnt72SUmpjuIGUv4G2l8hHoxugh_yyc"
 MINI_APP_URL = "https://tg-mini-app-ecru.vercel.app"
@@ -41,19 +57,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'referrals': current_refs + 1
                 })
 
-    # WebAppInfo ব্যবহার করা হয়েছে যেন ব্রাউজার পপআপ না আসে
     keyboard = [
         [InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=MINI_APP_URL))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"👋 Welcome {user.first_name}! all\n\n"
+        f"👋 Welcome {user.first_name}!\n\n"
         f"Click below to launch the Mini App, complete tasks, and earn USDT!",
         reply_markup=reply_markup
     )
 
 async def main():
+    # Background Health Server
+    Thread(target=run_health_check, daemon=True).start()
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     print("Bot is running...")
