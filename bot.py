@@ -48,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"👋 Welcome {user.first_name}!\n\n"
+        f"👋 Welcome {user.first_name}! all\n\n"
         f"Click below to launch the Mini App, complete tasks, and earn USDT!",
         reply_markup=reply_markup
     )
