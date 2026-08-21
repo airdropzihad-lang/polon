@@ -4,9 +4,8 @@ import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# FIREBASE SETUP (REST API)
+# FIREBASE SETUP
 FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
-
 BOT_TOKEN = "8807267842:AAGzBnt72SUmpjuIGUv4G2l8hHoxugh_yyc"
 MINI_APP_URL = "https://tg-mini-app-ecru.vercel.app"
 REFER_BONUS = 4.0
@@ -18,7 +17,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ref_by = args[0].replace('ref_', '') if args and args[0].startswith('ref_') else None
 
-    # Fetch User
+    # Fetch User via REST API
     res = requests.get(f"{FIREBASE_URL}/users/{user_id}.json")
     user_data = res.json()
 
