@@ -22,8 +22,8 @@ def run_health_check():
 # CONFIGURATION
 FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
 BOT_TOKEN = "8807267842:AAGzBnt72SUmpjuIGUv4G2l8hHoxugh_yyc"
-BOT_USERNAME = "PolzyxBot"  # সঠিক বোট ইউজারনেম সেট করা হয়েছে
-MINI_APP_URL = "https://tg-mini-app-ecru.vercel.app"
+BOT_USERNAME = "PolzyxBot"
+MINI_APP_URL = "https://polmain1.vercel.app/"  # আপনার নতুন হোস্টিং লিংক সেট করা হলো
 REFER_BONUS = 4.0
 
 # বাধ্যতামূলক চ্যানেলের লিস্ট (লিংক এবং চ্যানেল আইডি/ইউজারনেম)
@@ -31,10 +31,10 @@ REQUIRED_CHANNELS = [
     {"name": "Main Channel", "url": "https://t.me/Crypto_Income_BD", "id": "@Crypto_Income_BD"}
 ]
 
-# অ্যাডমিনের টেলিগ্রাম আইডি (এখানে আপনার আইডি বসান)
+# অ্যাডমিনের টেলিগ্রাম আইডি
 ADMIN_ID = "7888333547" 
 
-# চ্যানেল জয়েন চেক ফাংশন
+# চ্যানেল জয়েন চেক ফাংশন
 async def is_subscribed(bot, user_id):
     for ch in REQUIRED_CHANNELS:
         try:
@@ -50,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(user.id)
     args = context.args
 
-    # ১. চ্যানেল জয়েন করেছে কিনা ভেরিফাই করা
+    # ১. চ্যানেল জয়েন করেছে কিনা ভেরিফাই করা
     if not await is_subscribed(context.bot, user.id):
         buttons = []
         for ch in REQUIRED_CHANNELS:
