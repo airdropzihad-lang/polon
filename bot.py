@@ -80,12 +80,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # স্টার্ট মেসেজের টেক্সট
+    # স্টার্ট মেসেজের টেক্সট (আপডেট করা হয়েছে)
     start_text = (
-        "🌿 Welcome to Gram Wallet Pay!\n\n"
-        "⚡ Earn GRAM. Build your balance. Unlock rewards.\n\n"
-        "🎯 Complete tasks and collect GRAM Tokens.\n\n"
-        "Your GRAM journey starts here. 🚀 ⬇️"
+        f"🎁 Welcome to Gram Wallet Pay, {user.first_name}!\n\n"
+        "The Telegram Mini App where you can earn GRAM Tokens by completing simple tasks + earn more through referrals.\n\n"
+        "👇 Tap the button below to open the app and start earning!"
     )
 
     # ফটো সহ মেসেজ সেন্ড
