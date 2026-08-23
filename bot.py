@@ -2,10 +2,12 @@ import os
 import re
 import asyncio
 import requests
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.error import NetworkError, TimedOut
 
 # ================== CONFIG ==================
 BOT_TOKEN = "8860607501:AAHwZXswmo2fd8OtqOIX3E9__Ts-GuT4xkU"
@@ -20,21 +22,20 @@ REFER_BONUS = 20.0
 
 # TON Credentials
 TONCENTER_API_KEY = "028a77f69c8b3599ba220ca18b5d8e5c5f40c508692bd8283d9d2fe947db5fdc"
-MNEMONIC = [
-    "axis", "grape", "business", "tilt", "liar", "extend",
-    "economy", "tiger", "water", "robot", "float", "olympic",
-    "sad", "ozone", "sure", "endless", "shift", "area",
-    "own", "harvest", "wine", "zebra", "web", "one"
-]
-
 GD_TO_GRAM_RATE = 0.00001
 
-# ================== HEALTH CHECK ==================
+# ================== HEALTH CHECK (FIXED FOR RENDER HEAD REQUESTS) ==================
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
+        self.send_header("Content-type", "text/plain")
         self.end_headers()
         self.wfile.write(b"Bot is live!")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
 
 def run_health_check():
     port = int(os.environ.get("PORT", 10000))
@@ -52,7 +53,7 @@ async def send_gram_payment(destination: str, amount_gram: float, comment: str =
     }
     response = requests.post(url, json=payload, timeout=10)
     if response.status_code == 200 and response.json().get("ok"):
-        return f"auto_paid_{int(asyncio.get_event_loop().time())}"
+        return f"auto_paid_{int(time.time())}"
     else:
         raise Exception("TON API Network Timeout")
 
@@ -203,27 +204,39 @@ async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode="Markdown"
         )
 
-async def main():
-    Thread(target=run_health_check, daemon=True).start()
-    
+async def start_bot():
     app = (
         ApplicationBuilder()
         .token(BOT_TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .pool_timeout(30.0)
+        .connect_timeout(60.0)
+        .read_timeout(60.0)
+        .write_timeout(60.0)
+        .pool_timeout(60.0)
         .build()
     )
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(admin_button_handler, pattern="^(confirm|reject)_"))
     
-    print("Bot running...")
+    print("Bot starting...")
     await app.initialize()
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
     await asyncio.Event().wait()
+
+async def main():
+    Thread(target=run_health_check, daemon=True).start()
+    
+    # Auto-retry loop in case Telegram Network drops temporarily
+    while True:
+        try:
+            await start_bot()
+        except (NetworkError, TimedOut) as e:
+            print(f"Network error: {e}. Retrying in 5 seconds...")
+            await asyncio.sleep(5)
+        except Exception as e:
+            print(f"Unexpected error: {e}. Restarting bot...")
+            await asyncio.sleep(5)
 
 if __name__ == '__main__':
     try:
