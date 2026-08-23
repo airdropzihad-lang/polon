@@ -7,7 +7,7 @@ from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
-from tonutils.client import ToncenterV3Client
+from tonutils.client import TonapiClient
 from tonutils.wallet import WalletV4R2
 
 # ================== CONFIG ==================
@@ -21,12 +21,17 @@ CHANNEL_URL = "https://t.me/EARNINGllNEWS"
 START_IMAGE_URL = "https://ibb.co.com/BHbcTGjc"
 REFER_BONUS = 20.0
 
-# TON Auto Pay (Render Environment Variable এ সেট করো)
-# TON_MNEMONIC = "word1 word2 ... word24"
-MNEMONIC = os.environ.get("TON_MNEMONIC", "").split()
-TONCENTER_API_KEY = os.environ.get("TONCENTER_API_KEY", "028a77f69c8b3599ba220ca18b5d8e5c5f40c508692bd8283d9d2fe947db5fdc")
+# TON Credentials
+TONCENTER_API_KEY = "028a77f69c8b3599ba220ca18b5d8e5c5f40c508692bd8283d9d2fe947db5fdc"
+MNEMONIC = [
+    "axis", "grape", "business", "tilt", "liar", "extend",
+    "economy", "tiger", "water", "robot", "float", "olympic",
+    "sad", "ozone", "sure", "endless", "shift", "area",
+    "own", "harvest", "wine", "zebra", "web", "one"
+]
+
 IS_TESTNET = False
-GD_TO_GRAM_RATE = 0.00001   # নিজের মতো চেঞ্জ করো
+GD_TO_GRAM_RATE = 0.00001 
 
 # ================== HEALTH CHECK ==================
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -43,13 +48,11 @@ def run_health_check():
 # ================== TON SEND ==================
 async def send_gram_payment(destination: str, amount_gram: float, comment: str = "GramWallet Pay"):
     if not MNEMONIC or len(MNEMONIC) < 12:
-        raise Exception("TON_MNEMONIC environment variable set করো!")
+        raise Exception("TON Mnemonic not configured properly!")
     
-    client = ToncenterV3Client(
-        is_testnet=IS_TESTNET,
+    client = TonapiClient(
         api_key=TONCENTER_API_KEY,
-        rps=1,
-        max_retries=3
+        is_testnet=IS_TESTNET
     )
     wallet, _, _, _ = WalletV4R2.from_mnemonic(client, MNEMONIC)
     
