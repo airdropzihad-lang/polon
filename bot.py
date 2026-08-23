@@ -1,27 +1,34 @@
 import os
 import re
-import logging
 import asyncio
 import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
-# ========== TON AUTO PAYMENT ==========
 from tonutils.client import ToncenterV3Client
 from tonutils.wallet import WalletV4R2
 
-# Environment Variables (Render-এ সেট করো)
+# ================== CONFIG ==================
+BOT_TOKEN = "8860607501:AAHwZXswmo2fd8OtqOIX3E9__Ts-GuT4xkU"
+BOT_USERNAME = "GramWalletPay_Bot"
+MINI_APP_URL = "https://tg-mini-app-ecru.vercel.app/"
+FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
+ADMIN_ID = "7888333547"
+PAYOUT_CHANNEL_ID = "@Smartgrowsmm_payout"
+CHANNEL_URL = "https://t.me/EARNINGllNEWS"
+START_IMAGE_URL = "https://ibb.co.com/BHbcTGjc"
+REFER_BONUS = 20.0
+
+# TON Auto Pay (Render Environment Variable এ সেট করো)
+# TON_MNEMONIC = "word1 word2 ... word24"
 MNEMONIC = os.environ.get("TON_MNEMONIC", "").split()
-TONCENTER_API_KEY = os.environ.get("TONCENTER_API_KEY", None)
-IS_TESTNET = False  # Mainnet
+TONCENTER_API_KEY = os.environ.get("TONCENTER_API_KEY", "028a77f69c8b3599ba220ca18b5d8e5c5f40c508692bd8283d9d2fe947db5fdc")
+IS_TESTNET = False
+GD_TO_GRAM_RATE = 0.00001   # নিজের মতো চেঞ্জ করো
 
-# 1 GD = কত GRAM পাঠাবে (নিজের মতো অ্যাডজাস্ট করো)
-# উদাহরণ: খুব ছোট রাখলে 0.00001, বড় রাখলে বাড়াও
-GD_TO_GRAM_RATE = 0.00001
-
-# Render Port Handler
+# ================== HEALTH CHECK ==================
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -33,20 +40,10 @@ def run_health_check():
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
     server.serve_forever()
 
-# CONFIGURATION
-FIREBASE_URL = "https://pol-55434-default-rtdb.firebaseio.com"
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_NEW_BOT_TOKEN_HERE")
-BOT_USERNAME = "GramWalletPay_Bot"
-MINI_APP_URL = "https://polmain1.vercel.app/"
-REFER_BONUS = 20.0
-START_IMAGE_URL = "https://ibb.co.com/BHbcTGjc"
-CHANNEL_URL = "https://t.me/EARNINGllNEWS"
-PAYOUT_CHANNEL_ID = "@Smartgrowsmm_payout"
-ADMIN_ID = "7888333547"
-
+# ================== TON SEND ==================
 async def send_gram_payment(destination: str, amount_gram: float, comment: str = "GramWallet Pay"):
     if not MNEMONIC or len(MNEMONIC) < 12:
-        raise Exception("TON_MNEMONIC environment variable missing or invalid!")
+        raise Exception("TON_MNEMONIC environment variable set করো!")
     
     client = ToncenterV3Client(
         is_testnet=IS_TESTNET,
@@ -63,11 +60,11 @@ async def send_gram_payment(destination: str, amount_gram: float, comment: str =
     )
     return str(tx_hash)
 
+# ================== HANDLERS ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = str(user.id)
     args = context.args
-
     ref_by = args[0].replace('ref_', '') if args and args[0].startswith('ref_') else None
 
     res = requests.get(f"{FIREBASE_URL}/users/{user_id}.json")
@@ -93,16 +90,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if referrer_data:
                 current_bal = float(referrer_data.get('balance', 0.0))
                 current_refs = int(referrer_data.get('referrals', 0))
-                new_bal = current_bal + REFER_BONUS
-                
                 requests.patch(f"{FIREBASE_URL}/users/{ref_by}.json", json={
-                    'balance': new_bal,
+                    'balance': current_bal + REFER_BONUS,
                     'referrals': current_refs + 1
                 })
                 try:
                     await context.bot.send_message(
                         chat_id=int(ref_by),
-                        text=f"🎉 **New Referral!**\n{user.first_name} joined.\n+{REFER_BONUS:.0f} GD\nBalance: `{new_bal:.0f} GD`",
+                        text=f"🎉 New Referral!\n{user.first_name} joined.\n+{REFER_BONUS:.0f} GD",
                         parse_mode="Markdown"
                     )
                 except:
@@ -110,7 +105,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("Play 🎮", web_app=WebAppInfo(url=MINI_APP_URL))],
-        [InlineKeyboardButton("Join the Earning News ↗️", url=CHANNEL_URL)]
+        [InlineKeyboardButton("Join Earning News ↗️", url=CHANNEL_URL)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -121,11 +116,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        await update.message.reply_photo(
-            photo=START_IMAGE_URL,
-            caption=start_text,
-            reply_markup=reply_markup
-        )
+        await update.message.reply_photo(photo=START_IMAGE_URL, caption=start_text, reply_markup=reply_markup)
     except:
         await update.message.reply_text(text=start_text, reply_markup=reply_markup)
 
@@ -144,142 +135,88 @@ async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     amount = float(parts[2]) if len(parts) > 2 else 0.0
 
     message_text = query.message.text or ""
-    # Wallet address extract
     wallet_match = re.search(r'`([UE]Q[A-Za-z0-9_-]{46,})`', message_text)
     wallet_address = wallet_match.group(1) if wallet_match else None
 
     if action == "confirm":
         if not wallet_address:
-            await query.edit_message_text(
-                text=message_text + "\n\n❌ **ERROR: Wallet address not found!**",
-                parse_mode="Markdown"
-            )
+            await query.edit_message_text(text=message_text + "\n\n❌ Wallet address not found!", parse_mode="Markdown")
             return
 
         try:
             gram_amount = round(amount * GD_TO_GRAM_RATE, 6)
             if gram_amount < 0.001:
-                raise Exception(f"Amount too small ({gram_amount} GRAM). Increase GD_TO_GRAM_RATE")
+                raise Exception(f"Amount too small ({gram_amount} GRAM)")
 
-            tx_hash = await send_gram_payment(
-                destination=wallet_address,
-                amount_gram=gram_amount,
-                comment=f"GWP Withdraw {amount} GD | UID {target_user_id}"
-            )
+            tx_hash = await send_gram_payment(wallet_address, gram_amount, f"GWP {amount} GD | {target_user_id}")
 
             tx_link = f"https://tonviewer.com/transaction/{tx_hash}"
 
-            # User notification
             await context.bot.send_message(
                 chat_id=int(target_user_id),
                 text=(
-                    f"✅ **Withdrawal Paid Successfully!**\n\n"
-                    f"💰 Amount: `{amount:.0f} GD` → `{gram_amount} GRAM`\n"
-                    f"🏦 Wallet: `{wallet_address}`\n"
-                    f"🔗 TX Hash: `{tx_hash}`\n"
-                    f"🔍 View: {tx_link}"
+                    f"✅ **Withdrawal Paid!**\n\n"
+                    f"💰 `{amount:.0f} GD` → `{gram_amount} GRAM`\n"
+                    f"🏦 `{wallet_address}`\n"
+                    f"🔗 TX: `{tx_hash}`\n"
+                    f"🔍 {tx_link}"
                 ),
                 parse_mode="Markdown",
                 disable_web_page_preview=True
             )
 
-            # Channel post
             try:
                 await context.bot.send_message(
                     chat_id=PAYOUT_CHANNEL_ID,
-                    text=(
-                        f"🎉 **NEW PAYOUT CONFIRMED!** 🎉\n\n"
-                        f"👤 User ID: `{target_user_id}`\n"
-                        f"💰 `{amount:.0f} GD` → `{gram_amount} GRAM`\n"
-                        f"🔗 TX: `{tx_hash}`\n"
-                        f"Status: **Paid ✅**\n"
-                        f"🤖 @{BOT_USERNAME}"
-                    ),
+                    text=f"🎉 **PAYOUT CONFIRMED**\nUser: `{target_user_id}`\nAmount: `{amount:.0f} GD`\nTX: `{tx_hash}`\n@{BOT_USERNAME}",
                     parse_mode="Markdown"
                 )
-            except Exception as e:
-                print("Channel error:", e)
-
-            # Update Firebase transaction status (optional best effort)
-            try:
-                user_res = requests.get(f"{FIREBASE_URL}/users/{target_user_id}.json")
-                udata = user_res.json() or {}
-                txs = udata.get("transactions", [])
-                for tx in txs:
-                    if tx.get("status") == "Pending" and float(tx.get("amount", 0)) == amount:
-                        tx["status"] = "Paid"
-                        tx["tx_hash"] = tx_hash
-                        break
-                requests.patch(f"{FIREBASE_URL}/users/{target_user_id}.json", json={"transactions": txs})
             except:
                 pass
 
             await query.edit_message_text(
-                text=message_text + f"\n\n✅ **STATUS: CONFIRMED & AUTO-PAID**\nTX: `{tx_hash}`",
+                text=message_text + f"\n\n✅ **AUTO-PAID**\nTX: `{tx_hash}`",
                 parse_mode="Markdown"
             )
 
         except Exception as e:
-            error_msg = str(e)
             await query.edit_message_text(
-                text=message_text + f"\n\n❌ **AUTO-PAY FAILED:** `{error_msg}`",
+                text=message_text + f"\n\n❌ **FAILED:** `{str(e)}`",
                 parse_mode="Markdown"
             )
-            try:
-                await context.bot.send_message(
-                    chat_id=int(target_user_id),
-                    text=f"❌ Auto payment failed. Admin will check manually.\nError: {error_msg}"
-                )
-            except:
-                pass
 
     elif action == "reject":
-        # Refund balance
         try:
             res = requests.get(f"{FIREBASE_URL}/users/{target_user_id}.json")
             udata = res.json() or {}
             current = float(udata.get("balance", 0))
-            new_bal = current + amount
-            requests.patch(f"{FIREBASE_URL}/users/{target_user_id}.json", json={"balance": new_bal})
-
-            # Update tx status
-            txs = udata.get("transactions", [])
-            for tx in txs:
-                if tx.get("status") == "Pending" and float(tx.get("amount", 0)) == amount:
-                    tx["status"] = "Rejected"
-                    break
-            requests.patch(f"{FIREBASE_URL}/users/{target_user_id}.json", json={"transactions": txs})
-        except Exception as e:
-            print("Refund error:", e)
+            requests.patch(f"{FIREBASE_URL}/users/{target_user_id}.json", json={"balance": current + amount})
+        except:
+            pass
 
         try:
             await context.bot.send_message(
                 chat_id=int(target_user_id),
-                text=f"❌ **Withdrawal Rejected**\n\n`{amount:.0f} GD` request rejected.\nBalance refunded.",
+                text=f"❌ Withdrawal Rejected\n`{amount:.0f} GD` refunded.",
                 parse_mode="Markdown"
             )
         except:
             pass
 
         await query.edit_message_text(
-            text=message_text + "\n\n❌ **STATUS: REJECTED** (Balance refunded)",
+            text=message_text + "\n\n❌ **REJECTED** (Balance refunded)",
             parse_mode="Markdown"
         )
 
 async def main():
     Thread(target=run_health_check, daemon=True).start()
-
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(admin_button_handler, pattern="^(confirm|reject)_"))
-
-    print("Bot is running with TON Auto Payment...")
-    
+    print("Bot running with Auto TON Payment...")
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
-    
     await asyncio.Event().wait()
 
 if __name__ == '__main__':
