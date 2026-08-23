@@ -41,9 +41,8 @@ def run_health_check():
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
     server.serve_forever()
 
-# ================== TON SEND (DIRECT API METHOD) ==================
+# ================== TON SEND ==================
 async def send_gram_payment(destination: str, amount_gram: float, comment: str = "GramWallet Pay"):
-    # Toncenter V2 REST API endpoint via Direct Request
     url = f"https://toncenter.com/api/v2/jsonRPC?api_key={TONCENTER_API_KEY}"
     payload = {
         "id": 1,
@@ -55,7 +54,7 @@ async def send_gram_payment(destination: str, amount_gram: float, comment: str =
     if response.status_code == 200 and response.json().get("ok"):
         return f"auto_paid_{int(asyncio.get_event_loop().time())}"
     else:
-        raise Exception("Failed to communicate with TON Network API")
+        raise Exception("TON API Network Timeout")
 
 # ================== HANDLERS ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -206,13 +205,24 @@ async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def main():
     Thread(target=run_health_check, daemon=True).start()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    app = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(30.0)
+        .pool_timeout(30.0)
+        .build()
+    )
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(admin_button_handler, pattern="^(confirm|reject)_"))
-    print("Bot running with Direct TON Integration...")
+    
+    print("Bot running...")
     await app.initialize()
     await app.start()
-    await app.updater.start_polling()
+    await app.updater.start_polling(drop_pending_updates=True)
     await asyncio.Event().wait()
 
 if __name__ == '__main__':
