@@ -7,7 +7,7 @@ from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 
-from tonutils.client import TonapiClient
+from tonutils.client import ToncenterClient
 from tonutils.wallet import WalletV4R2
 
 # ================== CONFIG ==================
@@ -31,7 +31,7 @@ MNEMONIC = [
 ]
 
 IS_TESTNET = False
-GD_TO_GRAM_RATE = 0.00001 
+GD_TO_GRAM_RATE = 0.00001
 
 # ================== HEALTH CHECK ==================
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -48,9 +48,9 @@ def run_health_check():
 # ================== TON SEND ==================
 async def send_gram_payment(destination: str, amount_gram: float, comment: str = "GramWallet Pay"):
     if not MNEMONIC or len(MNEMONIC) < 12:
-        raise Exception("TON Mnemonic not configured properly!")
+        raise Exception("TON Mnemonic missing or invalid!")
     
-    client = TonapiClient(
+    client = ToncenterClient(
         api_key=TONCENTER_API_KEY,
         is_testnet=IS_TESTNET
     )
