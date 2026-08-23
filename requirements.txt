@@ -1,4 +1,4 @@
 python-telegram-bot==21.10
 requests==2.32.3
-tonutils==0.1.7
+pytonconnect==0.3.0
 typing-extensions
