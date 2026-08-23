@@ -221,6 +221,9 @@ async def start_bot():
     print("Bot starting...")
     await app.initialize()
     await app.start()
+
+    # পুরোনো আটকে থাকা ওয়েবহুক মুছে ফেলে পোলিং সিস্টেম চালু করা
+    await app.bot.delete_webhook(drop_pending_updates=True)
     await app.updater.start_polling(drop_pending_updates=True)
     await asyncio.Event().wait()
 
